@@ -18,7 +18,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: NDK cache
+        id: ndk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_HOME }}/ndk/25.1.8937393
+          key: ndk-25.1.8937393
+
       - name: NDK install
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.1.8937393" "platforms;android-34" "build-tools;34.0.0"
