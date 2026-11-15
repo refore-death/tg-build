@@ -1,0 +1,46 @@
+name: build-apk
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK + NDK
+        uses: android-actions/setup-android@v3
+
+      - name: NDK install
+        run: sdkmanager --install "ndk;25.1.8937393" || true
+
+      - name: Patch API keys
+        run: |
+          F=TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+          sed -i "s/public static int APP_ID = [0-9]*;/public static int APP_ID = ${{ secrets.TG_API_ID }};/" "$F"
+          sed -i "s/public static String APP_HASH = \"[^\"]*\";/public static String APP_HASH = \"${{ secrets.TG_API_HASH }}\";/" "$F"
+          grep -n "APP_ID\|APP_HASH" "$F" || true
+
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleAfatDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-apk
+          path: |
+            TMessagesProj/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
